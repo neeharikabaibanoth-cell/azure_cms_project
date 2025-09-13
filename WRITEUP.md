@@ -23,3 +23,10 @@
 Web app became my easiest option to do the project as it helped to work with ease and lead to creation of the app in a safe way.Azure App Service is the most suitable deployment option for the CMS application because it simplifies infrastructure management, reduces operational overhead, and enables fast and secure deployments. It allows developers to focus on writing and updating application code without worrying about underlying infrastructure. The platform is also cost-effective, supports automatic scaling, and integrates easily with GitHub for continuous deployment — which aligns well with modern web development workflows.
 
 Given the CMS app's requirements — a web-based frontend, database access, file storage, and OAuth2 authentication — Azure App Service provides a fully managed Platform-as-a-Service (PaaS) solution that is secure, scalable, and production-ready with minimal configuration. It removes the need for OS management, patching, and complex setup, while still supporting environment variables, secure secret storage, and easy integration with other Azure services like SQL Database and Blob Storage. For a web app of this scale, App Service offers the best balance of simplicity, performance, and reliability.
+
+## App changes that might change the decision:
+
+1) Need for specialized OS-level customization or software:If your app evolves to require low-level OS access or software not supported by App Service.
+2) Running long-running background jobs or worker processes:App Service supports WebJobs and containers but has some limits; heavy background processing might need VMs or Azure Kubernetes Service.
+3) Complex networking requirements:If your app needs specific network configurations, VPNs, or legacy protocols, VMs might be necessary.
+4)Highly resource-intensive workloads:If the app requires specific hardware (GPUs, high-memory), a VM or specialized service might be better.
