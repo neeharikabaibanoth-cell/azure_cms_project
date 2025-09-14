@@ -3,11 +3,12 @@ import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config(object):
-    SECRET_KEY = os.environ.get('SECRET_KEY') or '2d530819-8f1c-4407-b4f2-0b84fea9c249'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'OHb8Q~B1eCZXrrRw2U-bRlQTxwOdFjv44Q9QrclK'
 
     BLOB_ACCOUNT = os.environ.get('BLOB_ACCOUNT') or 'images10'
     BLOB_STORAGE_KEY = os.environ.get('BLOB_STORAGE_KEY') or 'RYciwj53lCxPqQxnJXjvCc48seXBDlUvkuW0Dy5gb74lwr4FXxzvCqcGKQW0m00X8kbLQFL9sDLr+ASt0Nh2Jg=='
     BLOB_CONTAINER = os.environ.get('BLOB_CONTAINER') or 'images'
+    #BLOB_CONNECTION_STRING=os.environ.get('BLOB_CONNECTION_STRING') or 'DefaultEndpointsProtocol=https;AccountName=images10;AccountKey=RYciwj53lCxPqQxnJXjvCc48seXBDlUvkuW0Dy5gb74lwr4FXxzvCqcGKQW0m00X8kbLQFL9sDLr+ASt0Nh2Jg==;EndpointSuffix=core.windows.net'
 
     SQL_SERVER = os.environ.get('SQL_SERVER') or 'udacitycms.database.windows.net'
     SQL_DATABASE = os.environ.get('SQL_DATABASE') or 'cms'
@@ -15,11 +16,12 @@ class Config(object):
     SQL_PASSWORD = os.environ.get('SQL_PASSWORD') or 'CMS4dmin'
     # Below URI may need some adjustments for driver version, based on your OS, if running locally
     SQLALCHEMY_DATABASE_URI = 'mssql+pyodbc://' + SQL_USER_NAME + '@' + SQL_SERVER + ':' + SQL_PASSWORD + '@' + SQL_SERVER + ':1433/' + SQL_DATABASE  + '?driver=ODBC+Driver+17+for+SQL+Server'
+    #SQLALCHEMY_DATABASE_URI = f"mssql+pyodbc://{SQL_USER_NAME}:{SQL_PASSWORD}@{SQL_SERVER}:1433/{SQL_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     ### Info for MS Authentication ###
     ### As adapted from: https://github.com/Azure-Samples/ms-identity-python-webapp ###
-    CLIENT_SECRET = "OHb8Q~B1eCZXrrRw2U-bRlQTxwOdFjv44Q9QrclK"
+    CLIENT_SECRET = "2d530819-8f1c-4407-b4f2-0b84fea9c249"
     # In your production app, Microsoft recommends you to use other ways to store your secret,
     # such as KeyVault, or environment variable as described in Flask's documentation here:
     # https://flask.palletsprojects.com/en/1.1.x/config/#configuring-from-environment-variables
@@ -32,7 +34,7 @@ class Config(object):
 
     CLIENT_ID = "4b3e1684-6000-42e7-9fff-bbbb9d10a07d"
 
-    REDIRECT_PATH = "https://localhost:5555/getAToken"  # Used to form an absolute URL; must match to app's redirect_uri set in AAD
+    REDIRECT_PATH = "/getAToken"  # Used to form an absolute URL; must match to app's redirect_uri set in AAD
 
     # You can find the proper permission names from this document
     # https://docs.microsoft.com/en-us/graph/permissions-reference

@@ -135,22 +135,3 @@ def _build_auth_url(authority=None, scopes=None, state=None):
         state=state or str(uuid.uuid4()),
         redirect_uri=url_for('authorized', _external=True, _scheme='https'))"""
     return None
-
-
-#Login monitoring:
-app.route('/')
-def home():
-    log=request.values.get('log_button')
-    if log:
-        if log == 'info':
-            app.logger.info('No issue.')
-        elif log == 'warning':
-            app.logger.warning('Warning occurred.')
-        elif log == 'error':
-            app.logger.error('Error occurred.')
-        elif log == 'critical':
-            app.logger.critical('Critical error occurred.')
-        return render_template(
-            'index.html',
-            log=log
-        )
