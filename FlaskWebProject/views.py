@@ -2,9 +2,9 @@
 Routes and views for the flask application.
 """
 
+
 from datetime import datetime
 from flask import render_template, flash, redirect, request, session, url_for
-#from werkzeug.urls import url_parse-changes
 from urllib.parse import urlparse
 from config import Config
 from FlaskWebProject import app, db
@@ -13,8 +13,11 @@ from flask_login import current_user, login_user, logout_user, login_required
 from FlaskWebProject.models import User, Post
 import msal
 import uuid
+from msal import SerializableTokenCache
+from flask_login import user_logged_in, user_logged_out
 
-imageSourceUrl = 'https://'+ app.config['BLOB_ACCOUNT']  + '.blob.core.windows.net/' + app.config['BLOB_CONTAINER']  + '/'
+imageSourceUrl = 'https://' + app.config['BLOB_ACCOUNT'] + '.blob.core.windows.net/' + app.config['BLOB_CONTAINER'] + '/'
+
 
 @app.route('/')
 @app.route('/home')
@@ -27,6 +30,7 @@ def home():
         title='Home Page',
         posts=posts
     )
+
 
 @app.route('/new_post', methods=['GET', 'POST'])
 @login_required
@@ -59,6 +63,7 @@ def post(id):
         form=form
     )
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -67,6 +72,7 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         if user is None or not user.check_password(form.password.data):
+            app.logger.warning(f"Failed login attempt for username: '{form.username.data}'")
             flash('Invalid username or password')
             return redirect(url_for('login'))
         login_user(user, remember=form.remember_me.data)
@@ -74,65 +80,98 @@ def login():
         if not next_page or urlparse(next_page).netloc != '':
             next_page = url_for('home')
         return redirect(next_page)
+
+    # Prepare MSAL login URL for Azure AD OAuth
     session["state"] = str(uuid.uuid4())
     auth_url = _build_auth_url(scopes=Config.SCOPE, state=session["state"])
+
     return render_template('login.html', title='Sign In', form=form, auth_url=auth_url)
 
-@app.route(Config.REDIRECT_PATH)  # Its absolute URL must match your app's redirect_uri set in AAD
+
+@app.route(Config.REDIRECT_PATH)  # e.g. /getAToken
 def authorized():
     if request.args.get('state') != session.get("state"):
         return redirect(url_for("home"))  # No-OP. Goes back to Index page
-    if "error" in request.args:  # Authentication/Authorization failure
+    if "error" in request.args:
+        # Authentication/Authorization failure
         return render_template("auth_error.html", result=request.args)
     if request.args.get('code'):
         cache = _load_cache()
-        # TODO: Acquire a token from a built msal app, along with the appropriate redirect URI
-        result = None
+        msal_app = _build_msal_app(cache=cache)
+        result = msal_app.acquire_token_by_authorization_code(
+            request.args['code'],
+            scopes=Config.SCOPE,
+            redirect_uri=url_for('authorized', _external=True, _scheme='https')
+        )
         if "error" in result:
             return render_template("auth_error.html", result=result)
+
         session["user"] = result.get("id_token_claims")
-        # Note: In a real app, we'd use the 'name' property from session["user"] below
-        # Here, we'll use the admin username for anyone who is authenticated by MS
-        user = User.query.filter_by(username="admin").first()
-        login_user(user)
         _save_cache(cache)
+
+        # Map Azure AD user to local user model
+        username = session["user"].get("preferred_username")
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            # Optional: create user if not exists
+            user = User(username=username)
+            db.session.add(user)
+            db.session.commit()
+
+        login_user(user)
     return redirect(url_for('home'))
+
 
 @app.route('/logout')
 def logout():
     logout_user()
-    if session.get("user"): # Used MS Login
-        # Wipe out user and its token cache from session
+    if session.get("user"):  # Used MS Login
+        # Clear session and token cache
         session.clear()
-        # Also logout from your tenant's web session
+        # Logout from Azure AD
         return redirect(
             Config.AUTHORITY + "/oauth2/v2.0/logout" +
-            "?post_logout_redirect_uri=" + url_for("login", _external=True))
-
+            "?post_logout_redirect_uri=" + url_for("login", _external=True)
+        )
     return redirect(url_for('login'))
 
+
 def _load_cache():
-    # TODO: Load the cache from `msal`, if it exists
-    cache = None
+    cache = SerializableTokenCache()
+    if session.get("token_cache"):
+        cache.deserialize(session["token_cache"])
     return cache
 
-def _save_cache(cache):
-    # TODO: Save the cache, if it has changed
-    pass
 
+def _save_cache(cache):
+    if cache.has_state_changed:
+        session["token_cache"] = cache.serialize()
 
 
 def _build_msal_app(cache=None, authority=None):
-    # TODO: Return a ConfidentialClientApplication
-    """return msal.ConfidentialClientApplication(
-        Config.CLIENT_ID, authority=authority or Config.AUTHORITY,
-        client_credential=Config.CLIENT_SECRET, token_cache=cache)"""
-    return None
+    return msal.ConfidentialClientApplication(
+        Config.CLIENT_ID,
+        authority=authority or Config.AUTHORITY,
+        client_credential=Config.CLIENT_SECRET,
+        token_cache=cache
+    )
+
 
 def _build_auth_url(authority=None, scopes=None, state=None):
-    # TODO: Return the full Auth Request URL with appropriate Redirect URI
-    """return _build_msal_app(authority=authority).get_authorization_request_url(
+    return _build_msal_app(authority=authority).get_authorization_request_url(
         scopes or [],
         state=state or str(uuid.uuid4()),
-        redirect_uri=url_for('authorized', _external=True, _scheme='https'))"""
-    return None
+        redirect_uri=url_for('authorized', _external=True, _scheme='https')
+    )
+
+
+# Login/logout signal handlers for successful login/logout logging
+
+@user_logged_in.connect_via(app)
+def log_login(sender, user):
+    app.logger.info(f"User '{user.username}' logged in successfully.")
+
+
+@user_logged_out.connect_via(app)
+def log_logout(sender, user):
+    app.logger.info(f"User '{user.username}' logged out.")
